@@ -80,7 +80,7 @@ internal external interface Metadata {
     var `$kClass$`: dynamic
     // This is an object for memoization of a isInterfaceImpl function
     // Can be mutated quite often
-    val interfacesCache: IsImplementsCache
+    var interfacesCache: IsImplementsCache?
 }
 
 // This is a flag for memoization of a isInterfaceImpl function
@@ -103,7 +103,7 @@ private var interfacesCounter = 0
 
 private fun Ctor.getOrDefineInterfaceId(): Number? {
     val metadata = `$metadata$`.unsafeCast<Metadata>()
-    val interfaceId = metadata.interfaceId.unsafeCast<Number>()
+    val interfaceId = metadata.interfaceId ?: -1
     return if (interfaceId != -1) {
         interfaceId
     } else {
@@ -135,6 +135,11 @@ private fun fastGetPrototype(ctor: Ctor): Prototype? {
 
 private fun completeInterfaceCache(ctor: Ctor): IsImplementsCache? {
     val metadata = ctor.`$metadata$`
+
+    if (metadata != null && metadata.interfacesCache == null)  {
+        metadata.interfacesCache = generateInterfaceCache()
+    }
+
     val interfacesCache = metadata?.interfacesCache
 
     if (interfacesCache != null) {
@@ -159,8 +164,23 @@ private fun completeInterfaceCache(ctor: Ctor): IsImplementsCache? {
     return interfacesCache
 }
 
+// Old JS Backend
+internal fun generateInterfaceCache(): IsImplementsCache {
+   return js("{ isComplete: false, implementInterfaceMemo: {} }")
+}
+
 private fun isInterfaceImpl(ctor: Ctor, iface: Ctor): Boolean {
-    val interfacesCache = ctor.`$metadata$`?.interfacesCache
+    if (ctor === iface) {
+        return true
+    }
+
+    val metadata = ctor.`$metadata$`
+
+    if (metadata != null && metadata.interfacesCache == null)  {
+        metadata.interfacesCache = generateInterfaceCache()
+    }
+
+    val interfacesCache = metadata?.interfacesCache
 
     return if (interfacesCache != null) {
         if (!interfacesCache.isComplete) completeInterfaceCache(ctor)

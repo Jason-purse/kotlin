@@ -29,8 +29,14 @@ private fun getKPropMetadata(paramCount: Int, setter: Any?, type: dynamic): dyna
 
     if (mdata.interfaces.size == 0) {
         mdata.interfaces.asDynamic().push(type)
-        mdata.interfacesCache.isComplete = false
-        mdata.interfacesCache.extendCacheWithSingle(type)
+
+        if (mdata.interfacesCache == null) {
+            mdata.interfacesCache = generateInterfaceCache()
+        } else {
+            mdata.interfacesCache!!.isComplete = false
+        }
+
+        mdata.interfacesCache!!.extendCacheWithSingle(type)
     }
 
     return mdata
