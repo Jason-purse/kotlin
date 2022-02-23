@@ -13,19 +13,13 @@ import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.ir.backend.js.utils.isEqualsInheritedFromAny
-import org.jetbrains.kotlin.ir.builders.irCall
-import org.jetbrains.kotlin.ir.builders.irCallConstructor
-import org.jetbrains.kotlin.ir.builders.irComposite
-import org.jetbrains.kotlin.ir.builders.irInt
+import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.interpreter.toIrConst
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classFqName
-import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.ir.types.isNullable
+import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.parentOrNull
@@ -113,17 +107,33 @@ class BuiltInsLowering(val context: WasmBackendContext) : FileLoweringPass {
                 }
 
             irBuiltins.dataClassArrayMemberHashCodeSymbol -> {
-                // TODO: Implement
-                return builder.irComposite {
-                    +call.getValueArgument(0)!!
-                    +irInt(7777)
+                val argument = call.getValueArgument(0)!!
+                val argumentType = argument.type
+                return builder.irCall(
+                    symbols.findContentHashCodeOverload(argumentType),
+                    irBuiltins.intType,
+                ).apply {
+                    extensionReceiver = argument
+                    if (argumentType.classOrNull == irBuiltins.arrayClass) {
+                        putTypeArgument(0, argumentType.getArrayElementType(irBuiltins))
+                    }
                 }
             }
             irBuiltins.dataClassArrayMemberToStringSymbol -> {
-                // TODO: Implement
-                return builder.irCall(symbols.anyNtoString).apply {
-                    putValueArgument(0, call.getValueArgument(0))
-                }
+                val argument = call.getValueArgument(0)!!
+                val isArray = argument.type.run { isPrimitiveArray() || isArray() || isNullableArray() }
+                val toStringExpression =
+                    if (isArray) "[...]".toIrConst(irBuiltins.stringType)
+                    else builder.irCall(symbols.anyNtoString).apply {
+                        putValueArgument(0, argument)
+                    }
+
+                return builder.irIfThenElse(
+                    type = irBuiltins.stringType,
+                    condition = builder.irEqualsNull(argument),
+                    thenPart = builder.irNull(irBuiltins.stringType),
+                    elsePart = toStringExpression
+                )
             }
             in symbols.startCoroutineUninterceptedOrReturnIntrinsics -> {
                 val arity = symbols.startCoroutineUninterceptedOrReturnIntrinsics.indexOf(symbol)
