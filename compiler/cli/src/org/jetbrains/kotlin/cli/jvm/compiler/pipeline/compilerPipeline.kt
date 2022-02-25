@@ -17,6 +17,7 @@ import com.intellij.openapi.vfs.VirtualFileSystem
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.io.URLUtil
+import org.jetbrains.kotlin.KtIoFileSourceFile
 import org.jetbrains.kotlin.KtSourceFile
 import org.jetbrains.kotlin.KtVirtualFileSourceFile
 import org.jetbrains.kotlin.analyzer.common.CommonPlatformAnalyzerServices
@@ -110,7 +111,7 @@ fun compileModulesUsingFrontendIrAndLightTree(
 
         // !!
         compilerConfiguration.kotlinSourceRoots.forAllFiles(compilerConfiguration, projectEnvironment.project) { virtualFile, isCommon ->
-            val file = KtVirtualFileSourceFile(virtualFile)
+            val file = KtIoFileSourceFile(File(virtualFile.path))
             if (isCommon) commonSources.add(file)
             else platformSources.add(file)
         }

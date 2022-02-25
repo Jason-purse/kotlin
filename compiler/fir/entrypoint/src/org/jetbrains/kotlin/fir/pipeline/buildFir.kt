@@ -29,12 +29,9 @@ fun FirSession.buildFirViaLightTree(
     val shouldCountLines = (reportFilesAndLines != null)
     var linesCount = 0
     val firFiles = files.map { file ->
-        val (code, linesMapping) =
-            with(file.getContentsAsStream()) {
-                with(reader(Charsets.UTF_8)) {
-                    readSourceFileWithMapping()
-                }
-            }
+        val (code, linesMapping) = with(file.getContentsAsStream().reader(Charsets.UTF_8)) {
+            this.readSourceFileWithMapping()
+        }
         if (shouldCountLines) {
             linesCount += linesMapping.lastOffset
         }
